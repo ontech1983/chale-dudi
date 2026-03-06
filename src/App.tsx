@@ -1,8 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { ShoppingCart, Menu as MenuIcon, X, Plus, Minus, Trash2, Clock, MapPin, Phone, ChevronRight, LayoutDashboard, Utensils, History, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { io, Socket } from 'socket.io-client';
 import { cn, Product, Order, OrderItem } from './types';
+
+// --- Utils ---
+
+function validarNumeroTelefone(numero: string) {
+  const numeros = numero.replace(/\D/g, '');
+  if (numeros.length !== 10 && numeros.length !== 11) return false;
+  const ddd = numeros.substring(0, 2);
+  const numeroPrincipal = numeros.substring(2);
+  const dddsValidos = ['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99'];
+  if (!dddsValidos.includes(ddd)) return false;
+  if (numeros.length === 11 && numeroPrincipal[0] !== '9') return false;
+  if (numeros.length === 10 && numeroPrincipal.length !== 8) return false;
+  return true;
+}
+
+function formatarNumeroTelefone(numero: string) {
+  const numeros = numero.replace(/\D/g, '');
+  if (numeros.length === 11) {
+    return `(${numeros.substring(0, 2)}) ${numeros.substring(2, 7)}-${numeros.substring(7)}`;
+  } else if (numeros.length === 10) {
+    return `(${numeros.substring(0, 2)}) ${numeros.substring(2, 6)}-${numeros.substring(6)}`;
+  } else {
+    return numero;
+  }
+}
 
 // --- Components ---
 
@@ -327,6 +352,23 @@ const AdminPanel = ({ isOpen, onClose, orders, onUpdateStatus }: {
 
 const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClose: () => void, onConfirm: (data: any) => void }) => {
   const [formData, setFormData] = useState({ name: '', phone: '', address: '', notes: '' });
+  const [isPhoneValid, setIsPhoneValid] = useState(true);
+
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const formatted = formatarNumeroTelefone(val);
+    setFormData({ ...formData, phone: formatted });
+    
+    // Only validate if it has enough digits or if user finished typing
+    const digits = val.replace(/\D/g, '');
+    if (digits.length >= 10) {
+      setIsPhoneValid(validarNumeroTelefone(digits));
+    } else {
+      setIsPhoneValid(true); // Don't show error while typing short number
+    }
+  };
+
+  const canConfirm = formData.name && formData.phone && formData.address && validarNumeroTelefone(formData.phone);
 
   return (
     <AnimatePresence>
@@ -361,11 +403,17 @@ const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClos
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">WhatsApp</label>
                 <input 
                   type="tel" 
-                  className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none"
+                  className={cn(
+                    "w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 outline-none transition-all",
+                    !isPhoneValid ? "ring-2 ring-red-500" : "focus:ring-brand-red"
+                  )}
                   placeholder="(00) 00000-0000"
                   value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
+                  onChange={handlePhoneChange}
                 />
+                {!isPhoneValid && (
+                  <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">Número de telefone inválido</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Endereço de Entrega</label>
@@ -388,7 +436,7 @@ const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClos
               </div>
               <button 
                 onClick={() => onConfirm(formData)}
-                disabled={!formData.name || !formData.phone || !formData.address}
+                disabled={!canConfirm}
                 className="w-full btn-primary py-4 mt-4 disabled:opacity-50"
               >
                 CONFIRMAR PEDIDO
