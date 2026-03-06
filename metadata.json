@@ -1,0 +1,7 @@
+{
+  "name": "Chalé lanches da Dudi",
+  "description": "O melhor lanche de Carmo do Rio Claro. Qualidade, sabor e tradição na Praça Dona Maria Goulart.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
