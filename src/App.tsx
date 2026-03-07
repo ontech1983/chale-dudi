@@ -2,11 +2,19 @@ import { useState, useEffect, ChangeEvent } from 'react';
 import { ShoppingCart, Menu as MenuIcon, X, Plus, Minus, Trash2, Clock, MapPin, Phone, ChevronRight, LayoutDashboard, Utensils, History, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { io, Socket } from 'socket.io-client';
-import { cn, Product, Order, OrderItem } from './types';
+import { cn, Product, Order, OrderItem, Extra } from './types';
 
 // --- Utils ---
 
 const DELIVERY_FEE = 4.0;
+
+const EXTRAS = [
+  { name: 'Milho', price: 2.0 },
+  { name: 'Batata Palha', price: 2.0 },
+  { name: 'Catupiry', price: 5.0 },
+  { name: 'Hambúrguer', price: 6.0 },
+  { name: 'Mussarela', price: 5.0 },
+];
 
 function validarNumeroTelefone(numero: string) {
   const numeros = numero.replace(/\D/g, '');
@@ -186,15 +194,122 @@ const ProductCard = ({ product, onAdd }: { product: Product, onAdd: (p: Product)
   </motion.div>
 );
 
+const ProductOptionsModal = ({ product, isOpen, onClose, onConfirm }: { 
+  product: Product | null, 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: (product: Product, selectedExtras: Extra[]) => void 
+}) => {
+  const [selectedExtras, setSelectedExtras] = useState<Extra[]>([]);
+
+  useEffect(() => {
+    if (isOpen) setSelectedExtras([]);
+  }, [isOpen, product]);
+
+  if (!product) return null;
+
+  const toggleExtra = (extra: Extra) => {
+    setSelectedExtras(prev => 
+      prev.find(e => e.name === extra.name)
+        ? prev.filter(e => e.name !== extra.name)
+        : [...prev, extra]
+    );
+  };
+
+  const totalPrice = product.price + selectedExtras.reduce((sum, e) => sum + e.price, 0);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 flex items-end md:items-center justify-center z-[110] p-0 md:p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div 
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            className="relative bg-white w-full max-w-lg rounded-t-[32px] md:rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black text-brand-black">Adicionais</h2>
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-2xl">
+              <img src={product.image} className="w-16 h-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
+              <div>
+                <h3 className="font-bold text-brand-black">{product.name}</h3>
+                <p className="text-brand-red font-black">R$ {product.price.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Turbine seu lanche</p>
+              {EXTRAS.map(extra => (
+                <button
+                  key={extra.name}
+                  onClick={() => toggleExtra(extra)}
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
+                    selectedExtras.find(e => e.name === extra.name)
+                      ? "border-brand-red bg-brand-red/5"
+                      : "border-slate-100 hover:border-slate-200"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors",
+                      selectedExtras.find(e => e.name === extra.name)
+                        ? "bg-brand-red border-brand-red"
+                        : "border-slate-300"
+                    )}>
+                      {selectedExtras.find(e => e.name === extra.name) && <Plus className="w-3 h-3 text-white" />}
+                    </div>
+                    <span className="font-bold text-slate-700">{extra.name}</span>
+                  </div>
+                  <span className="font-black text-brand-red">+ R$ {extra.price.toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-6 border-t">
+              <button 
+                onClick={() => {
+                  onConfirm(product, selectedExtras);
+                  setSelectedExtras([]);
+                }}
+                className="w-full btn-primary py-4 text-lg flex items-center justify-between px-8"
+              >
+                <span>ADICIONAR</span>
+                <span>R$ {totalPrice.toFixed(2)}</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 const CartDrawer = ({ isOpen, onClose, items, onUpdateQty, onRemove, onCheckout }: { 
   isOpen: boolean, 
   onClose: () => void, 
   items: OrderItem[],
-  onUpdateQty: (id: number, delta: number) => void,
-  onRemove: (id: number) => void,
+  onUpdateQty: (cartId: string, delta: number) => void,
+  onRemove: (cartId: string) => void,
   onCheckout: () => void
 }) => {
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = items.reduce((sum, item) => {
+    const extrasTotal = (item.extras?.reduce((s, e) => s + e.price, 0) || 0);
+    return sum + ((item.price + extrasTotal) * item.quantity);
+  }, 0);
 
   return (
     <AnimatePresence>
@@ -221,42 +336,69 @@ const CartDrawer = ({ isOpen, onClose, items, onUpdateQty, onRemove, onCheckout 
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
               {items.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4">
                   <ShoppingCart className="w-16 h-16 opacity-20" />
                   <p className="font-medium">Seu carrinho está vazio</p>
+                  <button 
+                    onClick={onClose}
+                    className="text-brand-red font-bold hover:underline"
+                  >
+                    Continuar Comprando
+                  </button>
                 </div>
               ) : (
-                items.map(item => (
-                  <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm flex gap-4">
-                    <div className="flex-1">
-                      <h4 className="font-bold text-brand-black">{item.name}</h4>
-                      <p className="text-brand-red font-bold">R$ {(item.price * item.quantity).toFixed(2)}</p>
-                      <div className="flex items-center gap-3 mt-3">
-                        <button 
-                          onClick={() => onUpdateQty(item.id, -1)}
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="font-bold w-4 text-center">{item.quantity}</span>
-                        <button 
-                          onClick={() => onUpdateQty(item.id, 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                <>
+                  <button 
+                    onClick={onClose}
+                    className="w-full py-4 bg-slate-100 text-brand-black font-bold rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 mb-4"
+                  >
+                    <Plus className="w-4 h-4" />
+                    CONTINUAR COMPRANDO
+                  </button>
+                  {items.map(item => (
+                    <div key={item.cartId} className="bg-white p-4 rounded-2xl shadow-sm flex gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-brand-black">{item.name}</h4>
+                        {item.extras && item.extras.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {item.extras.map(e => (
+                              <p key={e.name} className="text-[10px] text-slate-400 flex justify-between">
+                                <span>+ {e.name}</span>
+                                <span>R$ {e.price.toFixed(2)}</span>
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-brand-red font-bold mt-1">
+                          R$ {((item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0)) * item.quantity).toFixed(2)}
+                        </p>
+                        <div className="flex items-center gap-3 mt-3">
+                          <button 
+                            onClick={() => onUpdateQty(item.cartId, -1)}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="font-bold w-4 text-center">{item.quantity}</span>
+                          <button 
+                            onClick={() => onUpdateQty(item.cartId, 1)}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => onRemove(item.cartId)}
+                        className="text-slate-300 hover:text-red-500 transition-colors self-start"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => onRemove(item.id)}
-                      className="text-slate-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
 
@@ -276,12 +418,20 @@ const CartDrawer = ({ isOpen, onClose, items, onUpdateQty, onRemove, onCheckout 
                     <span className="text-brand-red">R$ {(total + DELIVERY_FEE).toFixed(2)}</span>
                   </div>
                 </div>
-                <button 
-                  onClick={onCheckout}
-                  className="w-full btn-primary py-4 text-lg"
-                >
-                  FINALIZAR PEDIDO
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={onCheckout}
+                    className="w-full btn-primary py-4 text-lg"
+                  >
+                    FINALIZAR PEDIDO
+                  </button>
+                  <button 
+                    onClick={onClose}
+                    className="w-full py-3 text-slate-500 font-bold hover:text-brand-black transition-colors text-sm uppercase tracking-wider"
+                  >
+                    Continuar Comprando
+                  </button>
+                </div>
               </div>
             )}
           </motion.div>
@@ -337,12 +487,21 @@ const AdminPanel = ({ isOpen, onClose, orders, onUpdateStatus }: {
 
                 <div className="space-y-2 mb-6 border-y py-4">
                   {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-slate-600">{item.quantity}x {item.name}</span>
-                      <span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600 font-medium">{item.quantity}x {item.name}</span>
+                        <span className="font-bold">R$ {((item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0)) * item.quantity).toFixed(2)}</span>
+                      </div>
+                      {item.extras && item.extras.length > 0 && (
+                        <div className="pl-4">
+                          {item.extras.map(e => (
+                            <p key={e.name} className="text-[10px] text-slate-400 italic">+ {e.name}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <div className="flex justify-between pt-2 font-black text-brand-red">
+                  <div className="flex justify-between pt-2 font-black text-brand-red border-t mt-2">
                     <span>Total</span>
                     <span>R$ {order.total.toFixed(2)}</span>
                   </div>
@@ -531,6 +690,8 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -560,19 +721,41 @@ export default function App() {
     : products.filter(p => p.category === activeCategory);
 
   const addToCart = (product: Product) => {
+    // If product is a burger or similar, show options
+    if (product.category.toLowerCase().includes('lanche') || product.category.toLowerCase().includes('hamb')) {
+      setSelectedProduct(product);
+      setIsOptionsOpen(true);
+    } else {
+      confirmAddToCart(product, []);
+    }
+  };
+
+  const confirmAddToCart = (product: Product, extras: Extra[]) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      // Create a unique cartId based on product and extras
+      const extrasId = extras.map(e => e.name).sort().join('|');
+      const cartId = `${product.id}-${extrasId}`;
+      
+      const existing = prev.find(item => item.cartId === cartId);
       if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map(item => item.cartId === cartId ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1 }];
+      return [...prev, { 
+        cartId,
+        id: product.id, 
+        name: product.name, 
+        price: product.price, 
+        quantity: 1,
+        extras: extras.length > 0 ? extras : undefined
+      }];
     });
+    setIsOptionsOpen(false);
     setIsCartOpen(true);
   };
 
-  const updateCartQty = (id: number, delta: number) => {
+  const updateCartQty = (cartId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.id === id) {
+      if (item.cartId === cartId) {
         const newQty = Math.max(1, item.quantity + delta);
         return { ...item, quantity: newQty };
       }
@@ -580,12 +763,15 @@ export default function App() {
     }));
   };
 
-  const removeFromCart = (id: number) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  const removeFromCart = (cartId: string) => {
+    setCart(prev => prev.filter(item => item.cartId !== cartId));
   };
 
   const handleCheckout = async (formData: any) => {
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => {
+      const extrasTotal = (item.extras?.reduce((s, e) => s + e.price, 0) || 0);
+      return sum + ((item.price + extrasTotal) * item.quantity);
+    }, 0);
     const total = subtotal + DELIVERY_FEE;
     const orderData = {
       customer_name: formData.name,
@@ -607,7 +793,11 @@ export default function App() {
       
       // Construct WhatsApp Message
       const storePhone = '5535999673500'; // Número da loja (Dudi)
-      const itemsList = cart.map(item => `• ${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2)}`).join('\n');
+      const itemsList = cart.map(item => {
+        const extrasStr = item.extras ? `\n   _Adicionais: ${item.extras.map(e => e.name).join(', ')}_` : '';
+        const itemPrice = item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0);
+        return `• ${item.quantity}x ${item.name}${extrasStr} - R$ ${(itemPrice * item.quantity).toFixed(2)}`;
+      }).join('\n');
       
       const message = encodeURIComponent(
         `*🍔 NOVO PEDIDO - CHALÉ DUDI (#${order.id})*\n\n` +
@@ -740,6 +930,13 @@ export default function App() {
       </footer>
 
       {/* Overlays */}
+      <ProductOptionsModal 
+        product={selectedProduct}
+        isOpen={isOptionsOpen}
+        onClose={() => setIsOptionsOpen(false)}
+        onConfirm={confirmAddToCart}
+      />
+
       <CartDrawer 
         isOpen={isCartOpen} 
         onClose={() => setIsCartOpen(false)} 

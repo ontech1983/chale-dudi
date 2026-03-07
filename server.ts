@@ -4,8 +4,21 @@ import { Server } from "socket.io";
 import http from "http";
 import Database from "better-sqlite3";
 import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
-const db = new Database("lanchonete.db");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let db: any;
+try {
+  db = new Database(path.join(__dirname, "lanchonete.db"));
+  console.log("Database initialized successfully");
+} catch (err) {
+  console.error("Failed to initialize database:", err);
+  // Fallback or exit
+  process.exit(1);
+}
 
 // Initialize Database
 db.exec(`
@@ -105,6 +118,10 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", env: process.env.NODE_ENV, dir: __dirname });
+  });
+
   // API Routes
   app.get("/api/products", (req, res) => {
     const products = db.prepare("SELECT * FROM products").all();
@@ -171,6 +188,19 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+    
+    app.get("*", async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/socket.io")) {
+        return next();
+      }
+      try {
+        const template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8");
+        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (e) {
+        res.status(500).end(e instanceof Error ? e.stack : String(e));
+      }
+    });
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
     app.get("*", (req, res) => {
@@ -183,4 +213,6 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+});

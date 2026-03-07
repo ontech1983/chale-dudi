@@ -14,11 +14,18 @@ export interface Product {
   image: string;
 }
 
+export interface Extra {
+  name: string;
+  price: number;
+}
+
 export interface OrderItem {
+  cartId: string;
   id: number;
   name: string;
   price: number;
   quantity: number;
+  extras?: Extra[];
 }
 
 export interface Order {
