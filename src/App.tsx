@@ -6,6 +6,8 @@ import { cn, Product, Order, OrderItem } from './types';
 
 // --- Utils ---
 
+const DELIVERY_FEE = 4.0;
+
 function validarNumeroTelefone(numero: string) {
   const numeros = numero.replace(/\D/g, '');
   if (numeros.length !== 10 && numeros.length !== 11) return false;
@@ -231,9 +233,19 @@ const CartDrawer = ({ isOpen, onClose, items, onUpdateQty, onRemove, onCheckout 
 
             {items.length > 0 && (
               <div className="p-6 bg-white border-t space-y-4">
-                <div className="flex justify-between items-center text-xl font-black">
-                  <span>Total</span>
-                  <span className="text-brand-red">R$ {total.toFixed(2)}</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Subtotal</span>
+                    <span>R$ {total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Taxa de Entrega</span>
+                    <span>R$ {DELIVERY_FEE.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xl font-black pt-2 border-t">
+                    <span>Total</span>
+                    <span className="text-brand-red">R$ {(total + DELIVERY_FEE).toFixed(2)}</span>
+                  </div>
                 </div>
                 <button 
                   onClick={onCheckout}
@@ -512,11 +524,13 @@ export default function App() {
   };
 
   const handleCheckout = async (formData: any) => {
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const total = subtotal + DELIVERY_FEE;
     const orderData = {
       customer_name: formData.name,
       customer_phone: formData.phone,
       address: formData.address,
+      notes: formData.notes,
       total,
       items: cart
     };
@@ -528,10 +542,33 @@ export default function App() {
     });
 
     if (res.ok) {
+      const order = await res.json();
+      
+      // Construct WhatsApp Message
+      const storePhone = '5535999673500'; // Número da loja (Dudi)
+      const itemsList = cart.map(item => `• ${item.quantity}x ${item.name} - R$ ${(item.price * item.quantity).toFixed(2)}`).join('\n');
+      
+      const message = encodeURIComponent(
+        `*🍔 NOVO PEDIDO - CHALÉ DUDI (#${order.id})*\n\n` +
+        `*Cliente:* ${formData.name}\n` +
+        `*Telefone:* ${formData.phone}\n` +
+        `*Endereço:* ${formData.address}\n` +
+        (formData.notes ? `*Obs:* ${formData.notes}\n` : '') +
+        `\n*ITENS:*\n${itemsList}\n` +
+        `\n*Subtotal:* R$ ${subtotal.toFixed(2)}` +
+        `\n*Taxa de Entrega:* R$ ${DELIVERY_FEE.toFixed(2)}` +
+        `\n*TOTAL: R$ ${total.toFixed(2)}*\n\n` +
+        `_Pedido realizado via Cardápio Digital_`
+      );
+
       setCart([]);
       setIsCheckoutOpen(false);
       setIsCartOpen(false);
-      alert('Pedido realizado com sucesso! Acompanhe pelo nosso WhatsApp.');
+      
+      // Redirect to WhatsApp
+      window.open(`https://wa.me/${storePhone}?text=${message}`, '_blank');
+      
+      alert('Pedido realizado com sucesso! Você será redirecionado para o WhatsApp para confirmar.');
     }
   };
 
