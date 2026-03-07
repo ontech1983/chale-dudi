@@ -391,7 +391,12 @@ const AdminPanel = ({ isOpen, onClose, orders, onUpdateStatus }: {
   </AnimatePresence>
 );
 
-const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClose: () => void, onConfirm: (data: any) => void }) => {
+const CheckoutModal = ({ isOpen, onClose, onConfirm, successUrl }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: (data: any) => void,
+  successUrl: string | null
+}) => {
   const [formData, setFormData] = useState({ name: '', phone: '', address: '', notes: '' });
   const [isPhoneValid, setIsPhoneValid] = useState(true);
 
@@ -400,12 +405,11 @@ const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClos
     const formatted = formatarNumeroTelefone(val);
     setFormData({ ...formData, phone: formatted });
     
-    // Only validate if it has enough digits or if user finished typing
     const digits = val.replace(/\D/g, '');
     if (digits.length >= 10) {
       setIsPhoneValid(validarNumeroTelefone(digits));
     } else {
-      setIsPhoneValid(true); // Don't show error while typing short number
+      setIsPhoneValid(true);
     }
   };
 
@@ -426,63 +430,90 @@ const CheckoutModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClos
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="relative bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+            className="relative bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl overflow-hidden"
           >
-            <h2 className="text-3xl font-black text-brand-black mb-6">Finalizar Pedido</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
-                <input 
-                  type="text" 
-                  className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none"
-                  placeholder="Seu nome"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                />
+            {successUrl ? (
+              <div className="text-center space-y-6 py-4">
+                <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus className="w-10 h-10 rotate-45" /> {/* Using Plus as a checkmark alternative or just a success icon */}
+                </div>
+                <h2 className="text-3xl font-black text-brand-black">Pedido Recebido!</h2>
+                <p className="text-slate-500">Seu pedido foi registrado em nosso sistema. Agora, clique no botão abaixo para nos enviar os detalhes pelo WhatsApp e confirmar sua entrega.</p>
+                <a 
+                  href={successUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-3 text-lg"
+                >
+                  <Phone className="w-6 h-6" />
+                  ENVIAR NO WHATSAPP
+                </a>
+                <button 
+                  onClick={onClose}
+                  className="text-slate-400 text-sm font-bold hover:text-slate-600 transition-colors"
+                >
+                  FECHAR JANELA
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">WhatsApp</label>
-                <input 
-                  type="tel" 
-                  className={cn(
-                    "w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 outline-none transition-all",
-                    !isPhoneValid ? "ring-2 ring-red-500" : "focus:ring-brand-red"
-                  )}
-                  placeholder="(00) 00000-0000"
-                  value={formData.phone}
-                  onChange={handlePhoneChange}
-                />
-                {!isPhoneValid && (
-                  <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">Número de telefone inválido</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Endereço de Entrega</label>
-                <textarea 
-                  className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none h-20 resize-none"
-                  placeholder="Rua, número, bairro..."
-                  value={formData.address}
-                  onChange={e => setFormData({...formData, address: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Observações (Opcional)</label>
-                <input 
-                  type="text" 
-                  className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none"
-                  placeholder="Ex: Sem cebola, extra queijo..."
-                  value={formData.notes}
-                  onChange={e => setFormData({...formData, notes: e.target.value})}
-                />
-              </div>
-              <button 
-                onClick={() => onConfirm(formData)}
-                disabled={!canConfirm}
-                className="w-full btn-primary py-4 mt-4 disabled:opacity-50"
-              >
-                CONFIRMAR PEDIDO
-              </button>
-            </div>
+            ) : (
+              <>
+                <h2 className="text-3xl font-black text-brand-black mb-6">Finalizar Pedido</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none"
+                      placeholder="Seu nome"
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">WhatsApp</label>
+                    <input 
+                      type="tel" 
+                      className={cn(
+                        "w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 outline-none transition-all",
+                        !isPhoneValid ? "ring-2 ring-red-500" : "focus:ring-brand-red"
+                      )}
+                      placeholder="(00) 00000-0000"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                    />
+                    {!isPhoneValid && (
+                      <p className="text-[10px] text-red-500 font-bold mt-1 uppercase tracking-wider">Número de telefone inválido</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Endereço de Entrega</label>
+                    <textarea 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none h-20 resize-none"
+                      placeholder="Rua, número, bairro..."
+                      value={formData.address}
+                      onChange={e => setFormData({...formData, address: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Observações (Opcional)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-brand-red outline-none"
+                      placeholder="Ex: Sem cebola, extra queijo..."
+                      value={formData.notes}
+                      onChange={e => setFormData({...formData, notes: e.target.value})}
+                    />
+                  </div>
+                  <button 
+                    onClick={() => onConfirm(formData)}
+                    disabled={!canConfirm}
+                    className="w-full btn-primary py-4 mt-4 disabled:opacity-50"
+                  >
+                    CONFIRMAR PEDIDO
+                  </button>
+                </div>
+              </>
+            )}
           </motion.div>
         </div>
       )}
@@ -500,6 +531,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
@@ -591,13 +623,7 @@ export default function App() {
       );
 
       setCart([]);
-      setIsCheckoutOpen(false);
-      setIsCartOpen(false);
-      
-      // Redirect to WhatsApp
-      window.open(`https://wa.me/${storePhone}?text=${message}`, '_blank');
-      
-      alert('Pedido realizado com sucesso! Você será redirecionado para o WhatsApp para confirmar.');
+      setWhatsappUrl(`https://api.whatsapp.com/send?phone=${storePhone}&text=${message}`);
     }
   };
 
@@ -732,8 +758,12 @@ export default function App() {
 
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
-        onClose={() => setIsCheckoutOpen(false)} 
+        onClose={() => {
+          setIsCheckoutOpen(false);
+          setWhatsappUrl(null);
+        }} 
         onConfirm={handleCheckout}
+        successUrl={whatsappUrl}
       />
     </div>
   );
