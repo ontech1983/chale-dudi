@@ -36,18 +36,18 @@ function formatarNumeroTelefone(numero: string) {
 const Header = ({ cartCount, onOpenCart, onOpenAdmin }: { cartCount: number, onOpenCart: () => void, onOpenAdmin: () => void }) => (
   <header className="sticky top-0 z-50 w-full glass px-4 py-3 flex items-center justify-between">
     <div className="flex items-center gap-2">
-      <div className="bg-brand-red p-2 rounded-lg">
-        <Utensils className="text-white w-6 h-6" />
+      <div className="bg-brand-red p-1.5 md:p-2 rounded-lg">
+        <Utensils className="text-white w-5 h-5 md:w-6 h-6" />
       </div>
-      <h1 className="text-xl font-black tracking-tighter text-brand-black">CHALÉ<span className="text-brand-red">DUDI</span></h1>
+      <h1 className="text-lg md:text-xl font-black tracking-tighter text-brand-black">CHALÉ<span className="text-brand-red">DUDI</span></h1>
     </div>
     
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2 md:gap-4">
       <button onClick={onOpenAdmin} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
-        <LayoutDashboard className="w-6 h-6" />
+        <LayoutDashboard className="w-5 h-5 md:w-6 h-6" />
       </button>
       <button onClick={onOpenCart} className="relative p-2 bg-brand-black text-white rounded-full hover:scale-105 transition-transform">
-        <ShoppingCart className="w-6 h-6" />
+        <ShoppingCart className="w-5 h-5 md:w-6 h-6" />
         {cartCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
             {cartCount}
@@ -58,8 +58,35 @@ const Header = ({ cartCount, onOpenCart, onOpenAdmin }: { cartCount: number, onO
   </header>
 );
 
+const MobileCartBar = ({ items, onOpen }: { items: OrderItem[], onOpen: () => void }) => {
+  if (items.length === 0) return null;
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const count = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return (
+    <motion.div 
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      className="fixed bottom-6 left-4 right-4 z-[55] md:hidden"
+    >
+      <button 
+        onClick={onOpen}
+        className="w-full bg-brand-red text-white p-4 rounded-2xl shadow-2xl shadow-red-500/40 flex items-center justify-between font-black"
+      >
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 px-2 py-1 rounded-lg text-xs">
+            {count} {count === 1 ? 'item' : 'itens'}
+          </div>
+          <span>VER CARRINHO</span>
+        </div>
+        <span>R$ {(total + DELIVERY_FEE).toFixed(2)}</span>
+      </button>
+    </motion.div>
+  );
+};
+
 const Hero = ({ onOrderNow }: { onOrderNow: () => void }) => (
-  <section className="relative h-[500px] w-full overflow-hidden bg-brand-black flex items-center px-6 md:px-20">
+  <section className="relative min-h-[400px] md:h-[500px] w-full overflow-hidden bg-brand-black flex items-center px-6 md:px-20 py-12 md:py-0">
     <div className="absolute inset-0 opacity-40">
       <img 
         src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=1200&q=80" 
@@ -72,7 +99,7 @@ const Hero = ({ onOrderNow }: { onOrderNow: () => void }) => (
       <motion.span 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="inline-block bg-brand-yellow text-brand-black px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
+        className="inline-block bg-brand-yellow text-brand-black px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4"
       >
         O melhor lanche de Carmo do Rio Claro
       </motion.span>
@@ -80,7 +107,7 @@ const Hero = ({ onOrderNow }: { onOrderNow: () => void }) => (
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="text-5xl md:text-7xl font-black text-white leading-tight mb-6"
+        className="text-4xl md:text-7xl font-black text-white leading-tight mb-6"
       >
         Sabor e Tradição em <br /> <span className="text-brand-red">Cada Mordida.</span>
       </motion.h2>
@@ -88,7 +115,7 @@ const Hero = ({ onOrderNow }: { onOrderNow: () => void }) => (
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="text-slate-300 text-lg mb-8 max-w-md"
+        className="text-slate-300 text-base md:text-lg mb-8 max-w-md"
       >
         Ingredientes frescos, carne selecionada e aquele molho especial que você só encontra aqui. Peça agora e receba em minutos!
       </motion.p>
@@ -97,7 +124,7 @@ const Hero = ({ onOrderNow }: { onOrderNow: () => void }) => (
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         onClick={onOrderNow}
-        className="btn-secondary flex items-center gap-2 group"
+        className="btn-secondary flex items-center gap-2 group w-full md:w-auto justify-center"
       >
         FAZER PEDIDO AGORA
         <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -130,27 +157,29 @@ const ProductCard = ({ product, onAdd }: { product: Product, onAdd: (p: Product)
     layout
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all group"
+    className="bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-row md:flex-col h-32 md:h-auto"
   >
-    <div className="h-48 overflow-hidden relative">
+    <div className="w-32 md:w-full h-full md:h-48 overflow-hidden relative shrink-0">
       <img 
         src={product.image} 
         alt={product.name} 
         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         referrerPolicy="no-referrer"
       />
-      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full font-black text-brand-red shadow-sm">
+      <div className="absolute top-2 right-2 md:top-3 md:right-3 bg-white/90 backdrop-blur px-2 py-0.5 md:px-3 md:py-1 rounded-full font-black text-brand-red shadow-sm text-xs md:text-base">
         R$ {product.price.toFixed(2)}
       </div>
     </div>
-    <div className="p-5">
-      <h3 className="font-bold text-lg mb-1 text-brand-black">{product.name}</h3>
-      <p className="text-slate-500 text-sm mb-4 line-clamp-2">{product.description}</p>
+    <div className="p-3 md:p-5 flex flex-col justify-between flex-1">
+      <div>
+        <h3 className="font-bold text-sm md:text-lg mb-0.5 md:mb-1 text-brand-black line-clamp-1">{product.name}</h3>
+        <p className="text-slate-500 text-[10px] md:text-sm mb-2 md:mb-4 line-clamp-2">{product.description}</p>
+      </div>
       <button 
         onClick={() => onAdd(product)}
-        className="w-full bg-slate-100 hover:bg-brand-red hover:text-white text-brand-black font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2"
+        className="w-full bg-slate-100 hover:bg-brand-red hover:text-white text-brand-black font-bold py-2 md:py-3 rounded-xl md:rounded-2xl transition-all flex items-center justify-center gap-1 md:gap-2 text-[10px] md:text-sm"
       >
-        <Plus className="w-5 h-5" />
+        <Plus className="w-3 h-3 md:w-5 h-5" />
         ADICIONAR
       </button>
     </div>
@@ -591,11 +620,11 @@ export default function App() {
       <main>
         <Hero onOrderNow={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })} />
         
-        <div id="menu" className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div id="menu" className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 gap-2 md:gap-4">
             <div>
-              <h2 className="text-4xl font-black text-brand-black">Nosso Cardápio</h2>
-              <p className="text-slate-500">Escolha sua delícia favorita</p>
+              <h2 className="text-2xl md:text-4xl font-black text-brand-black">Nosso Cardápio</h2>
+              <p className="text-slate-500 text-sm md:text-base">Escolha sua delícia favorita</p>
             </div>
             <CategoryFilter 
               categories={categories} 
@@ -604,7 +633,7 @@ export default function App() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8">
             {filteredProducts.map((product: Product) => (
               <ProductCard key={product.id} product={product} onAdd={addToCart} />
             ))}
@@ -612,32 +641,34 @@ export default function App() {
         </div>
 
         {/* Features / About Section */}
-        <section className="bg-white py-20 px-4">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-brand-yellow/20 text-brand-yellow rounded-3xl flex items-center justify-center mx-auto">
-                <Clock className="w-8 h-8" />
+        <section className="bg-white py-12 md:py-20 px-4">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            <div className="text-center space-y-2 md:space-y-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-brand-yellow/20 text-brand-yellow rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto">
+                <Clock className="w-6 h-6 md:w-8 md:h-8" />
               </div>
-              <h3 className="text-xl font-bold">Entrega Rápida</h3>
-              <p className="text-slate-500">Seu pedido chega quentinho em até 30 minutos na sua porta.</p>
+              <h3 className="text-lg md:text-xl font-bold">Entrega Rápida</h3>
+              <p className="text-slate-500 text-sm md:text-base">Seu pedido chega quentinho em até 30 minutos na sua porta.</p>
             </div>
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-brand-red/20 text-brand-red rounded-3xl flex items-center justify-center mx-auto">
-                <Star className="w-8 h-8" />
+            <div className="text-center space-y-2 md:space-y-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-brand-red/20 text-brand-red rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto">
+                <Star className="w-6 h-6 md:w-8 md:h-8" />
               </div>
-              <h3 className="text-xl font-bold">Qualidade Premium</h3>
-              <p className="text-slate-500">Usamos apenas carnes selecionadas e ingredientes frescos todos os dias.</p>
+              <h3 className="text-lg md:text-xl font-bold">Qualidade Premium</h3>
+              <p className="text-slate-500 text-sm md:text-base">Usamos apenas carnes selecionadas e ingredientes frescos todos os dias.</p>
             </div>
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto">
-                <Phone className="w-8 h-8" />
+            <div className="text-center space-y-2 md:space-y-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-100 text-emerald-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto">
+                <Phone className="w-6 h-6 md:w-8 md:h-8" />
               </div>
-              <h3 className="text-xl font-bold">Suporte 24/7</h3>
-              <p className="text-slate-500">Dúvidas? Nosso time está pronto para te atender via WhatsApp.</p>
+              <h3 className="text-lg md:text-xl font-bold">Suporte 24/7</h3>
+              <p className="text-slate-500 text-sm md:text-base">Dúvidas? Nosso time está pronto para te atender via WhatsApp.</p>
             </div>
           </div>
         </section>
       </main>
+
+      <MobileCartBar items={cart} onOpen={() => setIsCartOpen(true)} />
 
       {/* Footer */}
       <footer className="bg-brand-black text-white py-12 px-4 mt-20">
